@@ -1,6 +1,6 @@
 ---
 title: "MIS 510 Portfolio Project Option 1"
-author: "Ryan Meyers"
+author: "Ryan"
 date: "2/7/2021"
 output:
   word_document: default
