@@ -1,0 +1,166 @@
+---
+title: "MIS 510 Portfolio Project Option 1"
+author: "Ryan Meyers"
+date: "2/7/2021"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## The German Credit Dataset Exploration
+
+The first step in the Portfolio Project is to import the dataset that will be analyzed. This is completed using the read.csv() function to read in the GermanCredit.csv file into the R Studio environment. Various data exploration functions are used to gain a preliminary understanding of the data and create visuals of variable distributions.
+
+```{r}
+GermanCredit.df <- read.csv("GermanCredit.csv") #read in the German Credit dataset
+head(GermanCredit.df) #show first 6 rows fo the dataset
+GermanCredit.df <- GermanCredit.df[,-1]  #drop object column since it will not be used for analysis
+head(GermanCredit.df) #show first 6 rows after dropping the object column
+dim(GermanCredit.df) #find the dimensions of the dataframe
+class(GermanCredit.df$RESPONSE) #find type of data the response variable is
+mean(GermanCredit.df$AMOUNT) #find mean of the Loan amount variable
+hist(GermanCredit.df$DURATION)
+boxplot(GermanCredit.df$DURATION)
+```
+
+## Partitioning the Dataset for the First Logisitic Regression Model
+
+The German Credit dataset is partitioned into a training and validation dataset. This allows the logistic regression model to be trained and then evaluated utlizing new data to assess performance. A 60/40 split is used in this model.
+
+```{r}
+#partition data
+
+set.seed(1) #set seed for model
+#create training index for 60% of records
+train.index <- sample(c(1:dim(GermanCredit.df)[1]), dim(GermanCredit.df)[1]*0.6) 
+train.df <- GermanCredit.df[train.index, ] #Assign 60% of values to the training partition
+valid.df <- GermanCredit.df[-train.index, ] #Assign remaining values to the validation partition
+
+head(train.df) #show first 6 rows of the training partition
+head(valid.df) #show first 6 rows of the validation partition
+```
+
+## The First Logistic Regression Model
+
+The glm() function is utilized to build the logistic regression model for the response variable where 0 indicates a bad credit rating and 1 indicates a good credit rating of the applicant. The training data partition is used to build the model. The results are shown from the model and predictions are created from the validation dataset. A gains chart and confusion matrix is built to show the performance of the model with the accuracy of the model being displayed.
+
+```{r}
+#FIRST LOGISTIC REGRESSION MODEL
+
+logit.reg <- glm(RESPONSE ~ ., data = train.df, family = "binomial") #create logistic regression model
+options(scipen=999) #show values in non-scientific notation
+summary(logit.reg) #display model results
+```
+The logistic regression equation for the first logistic regression model is:
+0.917 + 0.523 CHK_ACCT - 0.029 DURATION + 0.312 HISTORY - 0.993 NEW_CAR + 0.122 USED_CAR -
+0.269 FURNITURE - 0.155 RADIO.TV - 0.982 EDUCATION - 0.470 RETRAINING - 0.00006 AMOUNT + 
+0.252 SAV_ACCT + 0.123 EMPLOYMENT - 0.364 INSTALL_RATE - 0.051 MALE_DIV + 0.492 MALE_SINGLE +
+0.527 MALE_MAR_OR_WID - 0.252 CO.APPLICANT + 0.181 GUARANTOR + 0.123 PRESENT_RESIDENT +
+0.265 REAL_ESTATE - 0.877 PROP_UNKN_NONE + 0.015 AGE - 0.642 OTHER_INSTALL - 0.678 RENT -
+0.125 OWN_RES - 0.275 NUM_CREDITS - 0.178 JOB + 0.019 NUM_DEPENDENTS + 0.505 TELEPHONE + 2.713 FOREIGN
+
+```{r}
+
+library(gains)
+pred <- predict(logit.reg, valid.df, type = "response") #create prediction values based on the validation partition
+
+pred #display prediction values
+gain <- gains(as.numeric(valid.df$RESPONSE), pred, groups=length(pred)) #store gains values for gains chart
+
+valid.df$RESPONSE <- as.numeric(as.character(valid.df$RESPONSE)) #convert RESPONSE variable for graphing
+
+#plot gains chart for the RESPONSE variable logistic regression model
+plot(c(0,gain$cume.pct.of.total*sum(valid.df$RESPONSE))~
+       c(0,gain$cume.obs), 
+     xlab="# cases", ylab="Cumulative", main="", type="l")
+lines(c(0,sum(valid.df$RESPONSE))~c(0, dim(valid.df)[1]), lty=2)
+
+# install.packages("caret")
+library(caret)
+
+# install.packages("e1071")
+library(e1071)
+
+#create confusion matrix for Response Variable and predicted values
+confusionMatrix(as.factor(ifelse(pred > 0.5, 1, 0)), as.factor(valid.df$RESPONSE))
+```
+From the gains chart and confusion matrix we can see that the logistic regression model performs better than the naive model. The accuracy of classification for the response variable is 77% when applied to the validation partition of the datset.
+
+## The Second Logistic Regression Model
+
+A second logistic regression model was built utlizing the same steps as the first model. However, for the second model the variables that were statistically significant from the first model are chosen to determine if a better model accuracy could be obtained.
+
+```{r}
+##SELECTED VARIABLE LOGISTIC REGRESSION
+SelectedGermanCredit.df <- GermanCredit.df[ ,c(1,2,3,11,13,23,29,30,31)] #Select statistically significant variables.
+head(SelectedGermanCredit.df) #display first six rows of selected variables
+
+#partition data with selected variables
+set.seed(1) #set seed for model
+#create training index for 60% of records
+train.index2 <- sample(c(1:dim(SelectedGermanCredit.df)[1]), dim(SelectedGermanCredit.df)[1]*0.6)
+train.df2 <- SelectedGermanCredit.df[train.index2, ] #Assign 60% of values to the training partition
+valid.df2 <- SelectedGermanCredit.df[-train.index2, ] #Assign remaining values to the validation partition
+
+head(train.df2) #show first 6 rows of the training partition
+head(valid.df2) #show first 6 rows of the validation partition
+
+
+logit.reg2 <- glm(RESPONSE ~ ., data = train.df2, family = "binomial") #create logistic regression model
+options(scipen=999) #show values in non-scientific notation
+summary(logit.reg2) #display model results
+```
+The logistic regression equation for the second logistic regression model is:
+0.534 + 0.540 CHK_ACCT - 0.037 DURATION + 0.299 HISTORY + 0.244 SAV_ACCT -
+0.214 INSTALL_RATE - 0.529 OTHER_INSTALL + 0.283 TELEPHONE + 2.26 FOREIGN
+
+
+```{r}
+
+library(gains)
+pred2 <- predict(logit.reg2, valid.df2, type = "response") #create prediction values based on the validation partition
+
+pred2 #display prediction values
+gain2 <- gains(as.numeric(valid.df2$RESPONSE), pred2, groups=length(pred2)) #store gains values for gains chart
+
+valid.df2$RESPONSE <- as.numeric(as.character(valid.df2$RESPONSE)) #convert RESPONSE variable for graphing
+
+#plot gains chart for the RESPONSE variable logistic regression model
+plot(c(0,gain2$cume.pct.of.total*sum(valid.df2$RESPONSE))~
+       c(0,gain2$cume.obs), 
+     xlab="# cases", ylab="Cumulative", main="", type="l")
+lines(c(0,sum(valid.df2$RESPONSE))~c(0, dim(valid.df2)[1]), lty=2)
+
+# install.packages("caret")
+library(caret)
+
+# install.packages("e1071")
+library(e1071)
+
+#create confusion matrix for Response Variable and predicted values
+confusionMatrix(as.factor(ifelse(pred2 > 0.5, 1, 0)), as.factor(valid.df2$RESPONSE))
+```
+The gains chart shows that the second logistic model outperforms the naive model. In comparing the first and second logistic regression model, the accuracy of the first model is higher which means that if all the data can be gathered for all variables the first model should be used. This is also shown in a lower AIC value for the first logsitic regression model.
+
+## Classification Tree
+
+A classification tree is built utlizing the RESPONSE variable as the output variable and all other variables in the dataset being the input variables. A default classification tree is built using the rpart library. If the packages are not installed they are included in the comments.
+
+```{r}
+#install necessary libraries
+library(rpart)
+#install.packages("rpart.plot", repos = "http://cran.us.r-project.org")
+#install.packages("rpart.plot")
+library(rpart.plot)
+
+
+#classification tree for the response variable
+default.ct <- rpart(RESPONSE ~ ., data = train.df, method = "class")
+prp(default.ct, type = 1, extra = 1, under = TRUE, split.font = 1, varlen = -10)
+```
+
+The classification tree allows the analyzer to look at values for specific variables to determine the output of the RESPONSE variable. In comparing the logistic regression models and the classification tree, it can be seen that similar variables can be used to predict the output of the RESPONSE variable such as CHK_ACCT and DURATION.
